@@ -2,140 +2,349 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css';
 
+let localLogs = '',
+  echoLogs = '';
+
+/* eslint-env browser */
+const log = (msg) => {
+  localLogs += `${msg} \n`;
+};
+
+const echoLog = (msg) => {
+  echoLogs += `${msg} \n`;
+};
+
+const config = {
+  iceServers: [
+    {
+      urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
+      username: 'conectar',
+      credential: 'ZVp1NaagEN7r',
+    },
+    {
+      urls: 'stun:stun.l.google.com:19302',
+    },
+  ],
+};
+
+const socket = new WebSocket('ws://18.195.79.21:7000/ws');
+const echoSocket = new WebSocket('ws://18.195.79.21:7000/ws');
+const pc = new RTCPeerConnection(config);
+const epc = new RTCPeerConnection(config);
+let localVideo;
+let remoteVideo;
+let simulcast = false;
+
+socket.onopen = () => {
+  console.log('CONNECTED');
+};
+echoSocket.onopen = () => {
+  console.log('ECHO CONNECTED');
+};
+
+pc.oniceconnectionstatechange = () =>
+  log(`ICE connection state: ${pc.iceConnectionState}`);
+
+pc.onicecandidate = (event) => {
+  if (event.candidate !== null) {
+    console.log('signal');
+    socket.send(
+      JSON.stringify({
+        method: 'trickle',
+        params: {
+          candidate: event.candidate,
+        },
+      })
+    );
+  }
+};
+
+socket.addEventListener('message', async (event) => {
+  const resp = JSON.parse(event.data);
+  // Listen for server renegotiation notifications
+  if (!resp.id && resp.method === 'offer') {
+    log(`Got offer notification`);
+    await pc.setRemoteDescription(resp.params);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    const id = Math.random().toString();
+    log(`Sending answer`);
+    socket.send(
+      JSON.stringify({
+        method: 'answer',
+        params: {
+          desc: answer,
+        },
+        id,
+      })
+    );
+  } else if (resp.method === 'trickle') {
+    pc.addIceCandidate(resp.params).catch(log);
+  }
+});
+
+function syntaxHighlight(json) {
+  json = json
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    function (match) {
+      let cls = 'number';
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) {
+          cls = 'key';
+        } else {
+          cls = 'string';
+        }
+      } else if (/true|false/.test(match)) {
+        cls = 'boolean';
+      } else if (/null/.test(match)) {
+        cls = 'null';
+      }
+      return '<span class="' + cls + '">' + match + '</span>';
+    }
+  );
+}
+
+const startEcho = () => {
+  epc.addTransceiver('video', {
+    direction: 'recvonly',
+  });
+  epc.addTransceiver('audio', {
+    direction: 'recvonly',
+  });
+  joinEcho();
+};
+
+const add = () => {
+  pc.addTrack(localStream.getAudioTracks()[0], localStream);
+};
+
+let localStream;
+let remoteStream;
+let pid;
+
+// remote
+let sendChannel = epc.createDataChannel('ion-sfu');
+sendChannel.onclose = () => echoLog('sendChannel has closed');
+sendChannel.onopen = () => {
+  echoLog('sendChannel has opened');
+};
+sendChannel.onmessage = (e) =>
+  echoLog(
+    `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
+  );
+
+const api = {
+  streamId: '',
+  video: 'high',
+  audio: true,
+};
+
+epc.oniceconnectionstatechange = () =>
+  echoLog(`ICE connection state2: ${epc.iceConnectionState}`);
+
+epc.onicecandidate = (event) => {
+  if (event.candidate !== null) {
+    echoSocket.send(
+      JSON.stringify({
+        method: 'trickle',
+        params: {
+          candidate: event.candidate,
+        },
+      })
+    );
+  }
+};
+
+const handleJoin = async () => {
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  const id = Math.random().toString();
+  console.log(offer);
+
+  socket.send(
+    JSON.stringify({
+      method: 'join',
+      params: {
+        sid: 'test room',
+        offer: pc.localDescription,
+      },
+      id,
+    })
+  );
+
+  socket.addEventListener('message', (event) => {
+    const resp = JSON.parse(event.data);
+    if (resp.id === id) {
+      log(`Got publish answer`);
+      // Hook this here so it's not called before joining
+      pc.onnegotiationneeded = async function () {
+        log('Renegotiating');
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        const id = Math.random().toString();
+        socket.send(
+          JSON.stringify({
+            method: 'offer',
+            params: {
+              desc: offer,
+            },
+            id,
+          })
+        );
+
+        socket.addEventListener('message', (event) => {
+          const resp = JSON.parse(event.data);
+          if (resp.id === id) {
+            log(`Got renegotiation answer`);
+            pc.setRemoteDescription(resp.result);
+          }
+        });
+      };
+      console.log(resp.result);
+      pc.setRemoteDescription(resp.result);
+      setTimeout(() => startEcho(), 500);
+    }
+  });
+};
+
+echoSocket.addEventListener('message', async (event) => {
+  const resp = JSON.parse(event.data);
+
+  // Listen for server renegotiation notifications
+  if (!resp.id && resp.method === 'offer') {
+    echoLog(`Got offer notification`);
+    await epc.setRemoteDescription(resp.params);
+    const answer = await epc.createAnswer();
+    await epc.setLocalDescription(answer);
+
+    const id = Math.random().toString();
+    echoLog(`Sending answer`);
+    echoSocket.send(
+      JSON.stringify({
+        method: 'answer',
+        params: {
+          desc: answer,
+        },
+        id,
+      })
+    );
+  } else if (resp.method === 'trickle') {
+    epc.addIceCandidate(resp.params).catch(echoLog);
+  }
+});
+
+const joinEcho = async () => {
+  const offer = await epc.createOffer();
+  await epc.setLocalDescription(offer);
+  const id = Math.random().toString();
+  console.log(offer);
+
+  echoSocket.send(
+    JSON.stringify({
+      method: 'join',
+      params: {
+        sid: 'test room',
+        offer: epc.localDescription,
+      },
+      id,
+    })
+  );
+
+  echoSocket.addEventListener('message', (event) => {
+    const resp = JSON.parse(event.data);
+    if (resp.id === id) {
+      echoLog(`Got publish answer2`);
+
+      // Hook this here so it's not called before joining
+      epc.onnegotiationneeded = async function () {
+        echoLog('Renegotiating');
+        const offer = await epc.createOffer();
+        await epc.setLocalDescription(offer);
+        const id = Math.random.toString();
+        echoSocket.send(
+          JSON.stringify({
+            method: 'offer',
+            params: {
+              desc: offer,
+            },
+            id,
+          })
+        );
+
+        echoSocket.addEventListener('message', (event) => {
+          const resp = JSON.parse(event.data);
+          if (resp.id === id) {
+            echoLog(`Got renegotiation answer`);
+            epc.setRemoteDescription(resp.result);
+          }
+        });
+      };
+      console.log(resp);
+      epc.setRemoteDescription(resp.result);
+      document.getElementById('controls').style.display = 'flex';
+      if (simulcast) {
+        document.getElementById('simulcast-controls').style.display = 'block';
+      } else {
+        document.getElementById('simple-controls').style.display = 'block';
+      }
+    }
+  });
+};
+
 function App() {
   const [apiValue, setApi] = React.useState('');
   const [brTag, setBrTag] = React.useState('');
   const [sizeTag, setSizeTag] = React.useState(0);
   const [joining, setJoining] = React.useState(false);
-  const localVideo = document.getElementById('local-video');
-  const remoteVideo = document.getElementById('remote-video');
 
-  let simulcast = false;
-  let localLogs = '',
-    echoLogs = '';
-
-  React.useEffect(() => {
-    handleMetaDataLoad();
-  }, [window.innerWidth, window.innerHeight]);
-
-  const handleMetaDataLoad = () => {
-    const { innerWidth, innerHeight } = window;
-    const product = innerWidth * innerHeight;
-    if (product !== sizeTag) {
-      setSizeTag(product);
-    }
+  const join = () => {
+    setJoining(true);
+    handleJoin();
   };
 
-  /* eslint-env browser */
-  const log = (msg) => {
-    localLogs += `${msg} \n`;
+  const getStats = () => {
+    let bytesPrev;
+    let timestampPrev;
+    setInterval(() => {
+      epc.getStats(null).then((results) => {
+        results.forEach((report) => {
+          const now = report.timestamp;
+
+          let bitrate;
+          if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+            const bytes = report.bytesReceived;
+            if (timestampPrev) {
+              bitrate = (8 * (bytes - bytesPrev)) / (now - timestampPrev);
+              bitrate = Math.floor(bitrate);
+            }
+            bytesPrev = bytes;
+            timestampPrev = now;
+          }
+          if (bitrate) {
+            setBrTag(`${bitrate} kbps`);
+          }
+        });
+      });
+    }, 1000);
   };
 
-  const echoLog = (msg) => {
-    echoLogs += `${msg} \n`;
+  const controlVideo = (radio) => {
+    api.video = radio.value;
+    const str = JSON.stringify(api, null, 2);
+    sendChannel.send(str);
+    setApi(syntaxHighlight(str));
   };
 
-  // socket.addEventListener('message', async (event) => {
-  //     const resp = JSON.parse(event.data)
-  //     // Listen for server renegotiation notifications
-  //     if (!resp.id && resp.method === "offer") {
-  //         log(`Got offer notification`)
-  //         await pc.setRemoteDescription(resp.params)
-  //         const answer = await pc.createAnswer()
-  //         await pc.setLocalDescription(answer)
-  //
-  //         const id = Math.random().toString()
-  //         log(`Sending answer`)
-  //         socket.send(JSON.stringify({
-  //             method: "answer",
-  //             params: { desc: answer },
-  //             id
-  //         }))
-  //     } else if (resp.method === "trickle") {
-  //         pc.addIceCandidate(resp.params).catch(log);
-  //     }
-  // })
-
-  const config = {
-    iceServers: [
-      {
-        urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
-        username: 'conectar',
-        credential: 'ZVp1NaagEN7r',
-      },
-      {
-        urls: 'stun:stun.l.google.com:19302',
-      },
-    ],
-  };
-
-  const socket = new WebSocket('ws://18.195.79.21:7000/ws');
-
-  const echoSocket = new WebSocket('ws://18.195.79.21:7000/ws');
-  const pc = new RTCPeerConnection(config);
-  const epc = new RTCPeerConnection(config);
-
-  socket.onopen = () => {
-    console.log('CONNECTED');
-  };
-  echoSocket.onopen = () => {
-    console.log('ECHO CONNECTED');
-  };
-
-  pc.oniceconnectionstatechange = () =>
-    log(`ICE connection state: ${pc.iceConnectionState}`);
-
-  pc.onicecandidate = (event) => {
-    if (event.candidate !== null) {
-      console.log('signal');
-      socket.send(
-        JSON.stringify({
-          method: 'trickle',
-          params: {
-            candidate: event.candidate,
-          },
-        })
-      );
-    }
-  };
-
-  socket.addEventListener('message', async (event) => {
-    const resp = JSON.parse(event.data);
-    // Listen for server renegotiation notifications
-    if (!resp.id && resp.method === 'offer') {
-      log(`Got offer notification`);
-      await pc.setRemoteDescription(resp.params);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      const id = Math.random().toString();
-      log(`Sending answer`);
-      socket.send(
-        JSON.stringify({
-          method: 'answer',
-          params: {
-            desc: answer,
-          },
-          id,
-        })
-      );
-    } else if (resp.method === 'trickle') {
-      pc.addIceCandidate(resp.params).catch(log);
-    }
-  });
-
-  const startEcho = () => {
-    epc.addTransceiver('video', {
-      direction: 'recvonly',
-    });
-    epc.addTransceiver('audio', {
-      direction: 'recvonly',
-    });
-    joinEcho();
-  };
-
-  const add = () => {
-    pc.addTrack(localStream.getAudioTracks()[0], localStream);
+  const controlAudio = (radio) => {
+    api.audio = radio.value === 'true';
+    const str = JSON.stringify(api, null, 2);
+    sendChannel.send(str);
+    setApi(syntaxHighlight(str));
   };
 
   const start = (sc) => {
@@ -192,257 +401,56 @@ function App() {
       .catch(log);
   };
 
-  let localStream;
-  let remoteStream;
-  let pid;
-
-  // remote
-  let sendChannel = epc.createDataChannel('ion-sfu');
-  sendChannel.onclose = () => echoLog('sendChannel has closed');
-  sendChannel.onopen = () => {
-    echoLog('sendChannel has opened');
-  };
-  sendChannel.onmessage = (e) =>
-    echoLog(
-      `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
-    );
-
-  const api = {
-    streamId: '',
-    video: 'high',
-    audio: true,
-  };
-
-  epc.oniceconnectionstatechange = () =>
-    echoLog(`ICE connection state2: ${epc.iceConnectionState}`);
-
-  epc.onicecandidate = (event) => {
-    if (event.candidate !== null) {
-      echoSocket.send(
-        JSON.stringify({
-          method: 'trickle',
-          params: {
-            candidate: event.candidate,
-          },
-        })
-      );
+  const handleMetaDataLoad = () => {
+    const { innerWidth, innerHeight } = window;
+    const product = innerWidth * innerHeight;
+    if (product !== sizeTag) {
+      setSizeTag(product);
     }
   };
 
-  function syntaxHighlight(json) {
-    json = json
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    return json.replace(
-      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-      function (match) {
-        let cls = 'number';
-        if (/^"/.test(match)) {
-          if (/:$/.test(match)) {
-            cls = 'key';
-          } else {
-            cls = 'string';
-          }
-        } else if (/true|false/.test(match)) {
-          cls = 'boolean';
-        } else if (/null/.test(match)) {
-          cls = 'null';
-        }
-        return '<span class="' + cls + '">' + match + '</span>';
+  React.useEffect(() => {
+    handleMetaDataLoad();
+  }, [window.innerWidth, window.innerHeight]);
+
+  React.useEffect(() => {
+    epc.ontrack = function ({ track, streams }) {
+      echoLog('Got remote track');
+      if (remoteStream === undefined) {
+        getStats();
+        remoteStream = streams[0];
+        remoteVideo.srcObject = remoteStream;
+        remoteVideo.autoplay = true;
+        api.streamId = remoteStream.id;
+        const str = JSON.stringify(api, null, 2);
+        setApi(syntaxHighlight(str));
       }
-    );
-  }
+    };
 
-  const join = async () => {
-    setJoining(true);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    const id = Math.random().toString();
-    console.log(offer);
+    localVideo = document.getElementById('local-video');
+    remoteVideo = document.getElementById('remote-video');
+  }, []);
 
-    socket.send(
-      JSON.stringify({
-        method: 'join',
-        params: {
-          sid: 'test room',
-          offer: pc.localDescription,
-        },
-        id,
-      })
-    );
-
-    socket.addEventListener('message', (event) => {
-      const resp = JSON.parse(event.data);
-      if (resp.id === id) {
-        log(`Got publish answer`);
-        // Hook this here so it's not called before joining
-        pc.onnegotiationneeded = async function () {
-          log('Renegotiating');
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          const id = Math.random().toString();
-          socket.send(
-            JSON.stringify({
-              method: 'offer',
-              params: {
-                desc: offer,
-              },
-              id,
-            })
-          );
-
-          socket.addEventListener('message', (event) => {
-            const resp = JSON.parse(event.data);
-            if (resp.id === id) {
-              log(`Got renegotiation answer`);
-              pc.setRemoteDescription(resp.result);
-            }
-          });
-        };
-        console.log(resp.result);
-        pc.setRemoteDescription(resp.result);
-        setTimeout(() => startEcho(), 500);
-      }
-    });
-  };
-
-  const controlVideo = (radio) => {
-    api.video = radio.value;
-    const str = JSON.stringify(api, null, 2);
-    sendChannel.send(str);
-    setApi(syntaxHighlight(str));
-  };
-
-  const controlAudio = (radio) => {
-    api.audio = radio.value === 'true';
-    const str = JSON.stringify(api, null, 2);
-    sendChannel.send(str);
-    setApi(syntaxHighlight(str));
-  };
-
-  const getStats = () => {
-    let bytesPrev;
-    let timestampPrev;
-    setInterval(() => {
-      epc.getStats(null).then((results) => {
-        results.forEach((report) => {
-          const now = report.timestamp;
-
-          let bitrate;
-          if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
-            const bytes = report.bytesReceived;
-            if (timestampPrev) {
-              bitrate = (8 * (bytes - bytesPrev)) / (now - timestampPrev);
-              bitrate = Math.floor(bitrate);
-            }
-            bytesPrev = bytes;
-            timestampPrev = now;
-          }
-          if (bitrate) {
-            setBrTag(`${bitrate} kbps`);
-          }
-        });
-      });
-    }, 1000);
-  };
-
-  epc.ontrack = function ({ track, streams }) {
-    echoLog('Got remote track');
-    if (remoteStream === undefined) {
-      getStats();
-      remoteStream = streams[0];
-      remoteVideo.srcObject = remoteStream;
-      remoteVideo.autoplay = true;
-      api.streamId = remoteStream.id;
-      const str = JSON.stringify(api, null, 2);
-      setApi(syntaxHighlight(str));
-    }
-  };
-
-  echoSocket.addEventListener('message', async (event) => {
-    const resp = JSON.parse(event.data);
-
-    // Listen for server renegotiation notifications
-    if (!resp.id && resp.method === 'offer') {
-      echoLog(`Got offer notification`);
-      await epc.setRemoteDescription(resp.params);
-      const answer = await epc.createAnswer();
-      await epc.setLocalDescription(answer);
-
-      const id = Math.random().toString();
-      echoLog(`Sending answer`);
-      echoSocket.send(
-        JSON.stringify({
-          method: 'answer',
-          params: {
-            desc: answer,
-          },
-          id,
-        })
-      );
-    } else if (resp.method === 'trickle') {
-      epc.addIceCandidate(resp.params).catch(echoLog);
-    }
-  });
-
-  const joinEcho = async () => {
-    const offer = await epc.createOffer();
-    await epc.setLocalDescription(offer);
-    const id = Math.random().toString();
-    console.log(offer);
-
-    echoSocket.send(
-      JSON.stringify({
-        method: 'join',
-        params: {
-          sid: 'test room',
-          offer: epc.localDescription,
-        },
-        id,
-      })
-    );
-
-    echoSocket.addEventListener('message', (event) => {
-      const resp = JSON.parse(event.data);
-      if (resp.id === id) {
-        echoLog(`Got publish answer2`);
-
-        // Hook this here so it's not called before joining
-        epc.onnegotiationneeded = async function () {
-          echoLog('Renegotiating');
-          const offer = await epc.createOffer();
-          await epc.setLocalDescription(offer);
-          const id = Math.random.toString();
-          echoSocket.send(
-            JSON.stringify({
-              method: 'offer',
-              params: {
-                desc: offer,
-              },
-              id,
-            })
-          );
-
-          echoSocket.addEventListener('message', (event) => {
-            const resp = JSON.parse(event.data);
-            if (resp.id === id) {
-              echoLog(`Got renegotiation answer`);
-              epc.setRemoteDescription(resp.result);
-            }
-          });
-        };
-        console.log(resp);
-        epc.setRemoteDescription(resp.result);
-        document.getElementById('controls').style.display = 'flex';
-        if (simulcast) {
-          document.getElementById('simulcast-controls').style.display = 'block';
-        } else {
-          document.getElementById('simple-controls').style.display = 'block';
-        }
-      }
-    });
-  };
+  // socket.addEventListener('message', async (event) => {
+  //     const resp = JSON.parse(event.data)
+  //     // Listen for server renegotiation notifications
+  //     if (!resp.id && resp.method === "offer") {
+  //         log(`Got offer notification`)
+  //         await pc.setRemoteDescription(resp.params)
+  //         const answer = await pc.createAnswer()
+  //         await pc.setLocalDescription(answer)
+  //
+  //         const id = Math.random().toString()
+  //         log(`Sending answer`)
+  //         socket.send(JSON.stringify({
+  //             method: "answer",
+  //             params: { desc: answer },
+  //             id
+  //         }))
+  //     } else if (resp.method === "trickle") {
+  //         pc.addIceCandidate(resp.params).catch(log);
+  //     }
+  // })
 
   return (
     <div className='App'>
