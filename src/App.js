@@ -7,11 +7,11 @@ let localLogs = '',
 
 /* eslint-env browser */
 const log = (msg) => {
-  localLogs += `${msg} \n`;
+  localLogs += `${msg} </br>`;
 };
 
 const echoLog = (msg) => {
-  echoLogs += `${msg} \n`;
+  echoLogs += `${msg} </br>`;
 };
 
 const config = {
@@ -297,15 +297,20 @@ const joinEcho = async () => {
 };
 
 function App() {
-  const [apiValue, setApi] = React.useState('');
   const [brTag, setBrTag] = React.useState('');
+  const [apiValue, setApi] = React.useState('');
   const [sizeTag, setSizeTag] = React.useState(0);
   const [joining, setJoining] = React.useState(false);
+  const [videoSettings, SVS] = React.useState('high');
+  const [audioSettings, SAS] = React.useState(true);
 
   const join = () => {
     setJoining(true);
     handleJoin();
   };
+
+  const setVideoSettings = (value) => () => SVS(value);
+  const setAudioSettings = (value) => () => SAS(value);
 
   const getStats = () => {
     let bytesPrev;
@@ -333,19 +338,23 @@ function App() {
     }, 1000);
   };
 
-  const controlVideo = (radio) => {
-    api.video = radio.value;
-    const str = JSON.stringify(api, null, 2);
-    sendChannel.send(str);
-    setApi(syntaxHighlight(str));
-  };
+  React.useEffect(() => {
+    if (sendChannel.readyState === 'open') {
+      api.video = videoSettings;
+      const str = JSON.stringify(api, null, 2);
+      sendChannel.send(str);
+      setApi(syntaxHighlight(str));
+    }
+  }, [videoSettings]);
 
-  const controlAudio = (radio) => {
-    api.audio = radio.value === 'true';
-    const str = JSON.stringify(api, null, 2);
-    sendChannel.send(str);
-    setApi(syntaxHighlight(str));
-  };
+  React.useEffect(() => {
+    if (sendChannel.readyState === 'open') {
+      api.audio = audioSettings;
+      const str = JSON.stringify(api, null, 2);
+      sendChannel.send(str);
+      setApi(syntaxHighlight(str));
+    }
+  }, [audioSettings]);
 
   const start = (sc) => {
     simulcast = sc;
@@ -493,12 +502,10 @@ function App() {
                   <label>
                     <input
                       type='radio'
-                      onClick={() => {
-                        controlVideo(this);
-                      }}
                       value='high'
                       name='optvideos'
-                      checked
+                      checked={videoSettings === 'high'}
+                      onChange={setVideoSettings('high')}
                     ></input>
                     High
                   </label>
@@ -507,9 +514,8 @@ function App() {
                   <label>
                     <input
                       type='radio'
-                      onClick={() => {
-                        controlVideo(this);
-                      }}
+                      checked={videoSettings === 'medium'}
+                      onChange={setVideoSettings('medium')}
                       value='medium'
                       name='optvideos'
                     ></input>
@@ -520,9 +526,8 @@ function App() {
                   <label>
                     <input
                       type='radio'
-                      onClick={() => {
-                        controlVideo(this);
-                      }}
+                      checked={videoSettings === 'low'}
+                      onChange={setVideoSettings('low')}
                       value='low'
                       name='optvideos'
                     ></input>
@@ -533,9 +538,8 @@ function App() {
                   <label>
                     <input
                       type='radio'
-                      onClick={() => {
-                        controlVideo(this);
-                      }}
+                      checked={videoSettings === 'none'}
+                      onChange={setVideoSettings('none')}
                       value='none'
                       name='optvideos'
                     ></input>
@@ -549,9 +553,8 @@ function App() {
                   <label>
                     <input
                       type='radio'
-                      onClick={() => {
-                        controlVideo(this);
-                      }}
+                      checked={videoSettings === 'high'}
+                      onChange={setVideoSettings('high')}
                       value='high'
                       name='optvideo'
                       checked
@@ -563,9 +566,8 @@ function App() {
                   <label>
                     <input
                       type='radio'
-                      onClick={() => {
-                        controlVideo(this);
-                      }}
+                      checked={videoSettings === 'none'}
+                      onChange={setVideoSettings('none')}
                       value='none'
                       name='optvideo'
                     ></input>
@@ -580,12 +582,10 @@ function App() {
                 <label>
                   <input
                     type='radio'
-                    onClick={() => {
-                      controlAudio(this);
-                    }}
-                    value='true'
+                    checked={audioSettings === true}
+                    onChange={setAudioSettings(true)}
+                    value={true}
                     name='optaudio'
-                    checked
                   ></input>
                   Unmute
                 </label>
@@ -594,10 +594,9 @@ function App() {
                 <label>
                   <input
                     type='radio'
-                    onClick={() => {
-                      controlAudio(this);
-                    }}
-                    value='false'
+                    checked={audioSettings === false}
+                    onChange={setAudioSettings(false)}
+                    value={false}
                     name='optaudio'
                   ></input>{' '}
                   Mute
@@ -609,10 +608,9 @@ function App() {
               <pre
                 id='api'
                 className='d-block border'
+                dangerouslySetInnerHTML={{ __html: apiValue }}
                 style={{ backgroundColor: '#f8f9fa', height: '117px' }}
-              >
-                {apiValue}
-              </pre>
+              />
             </div>
           </div>
           <div className='row'>
@@ -639,9 +637,8 @@ function App() {
                 id='local-logs'
                 className='mt-2 d-block'
                 style={{ backgroundColor: '#f8f9fa' }}
-              >
-                {localLogs}
-              </div>
+                dangerouslySetInnerHTML={{ __html: localLogs }}
+              />
             </div>
             <div className='col-6 pt-2'>
               <span
@@ -681,9 +678,8 @@ function App() {
                 id='echo-logs'
                 className='mt-2 d-block'
                 style={{ backgroundColor: '#f8f9fa' }}
-              >
-                {echoLogs}
-              </div>
+                dangerouslySetInnerHTML={{ __html: echoLogs }}
+              />
             </div>
           </div>
         </div>
