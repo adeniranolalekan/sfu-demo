@@ -697,6 +697,7 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
+import Group from './Group.js';
 
 let localLogs = '',
     echoLogs = '';
@@ -899,7 +900,10 @@ function App() {
   const [joining, setJoining] = React.useState(false);
   const [videoSettings, SVS] = React.useState('high');
   const [audioSettings, SAS] = React.useState(true);
-  const [streamArray, setStreamArray]=React.useState([])
+  const [streamArray, setStreamArray]=React.useState([
+
+
+  ])
 
   const join = () => {
     setJoining(true);
@@ -908,7 +912,15 @@ function App() {
 
   const setVideoSettings = (value) => () => SVS(value);
   const setAudioSettings = (value) => () => SAS(value);
-
+  let valueExist=false;
+  let streamId=0;
+  function isValueExist(value) {
+    if(value.key===streamId){
+      valueExist=true
+    }else {
+      valueExist=false;
+    }
+  }
 
   const getStats = () => {
     let bytesPrev;
@@ -1030,21 +1042,36 @@ function App() {
   React.useEffect(() => {
     pc.ontrack = function ({ track, streams }) {
       echoLog('Got remote track');
+      streamId=streams[0].id
+      streamArray.every(item =>{
+        isValueExist(item)
+        if (valueExist===true){
+         return
+        }
 
-      console.log(streams[0].id)
-      if (remoteStream === undefined) {
+      });
+      if(valueExist===false){
+
         remoteStream = streams[0];
-        remoteVideo.srcObject = remoteStream;
-        remoteVideo.autoplay = true;
+        let  newArray = [...streamArray, {key:streamId,source:remoteStream,autoplay:true}];
+        setStreamArray(newArray);
         api.streamId = remoteStream.id;
         const str = JSON.stringify(api, null, 2);
         setApi(syntaxHighlight(str));
+        console.log(streamArray)
+
+
+      }
+
+
+      console.log(streams[0].id)
+      if (remoteStream === undefined) {
+
       }
     };
 
     localVideo = document.getElementById('local-video');
-    remoteVideo = document.getElementById('remote-video');
-  }, []);
+  }, [streamArray]);
 
   // socket.addEventListener('message', async (event) => {
   //     const resp = JSON.parse(event.data)
@@ -1273,12 +1300,22 @@ function App() {
                     style={{ position: 'absolute', left: '270px', top: '225px' }}
                     className='badge badge-primary'
                 ></span>
-                <video
-                    id='remote-video'
-                    style={{ backgroundColor: 'black' }}
-                    width='320'
-                    height='240'
-                ></video>
+                <Group >{
+                  streamArray.map(item => ( <video
+                      key={item.key}
+                      className='remote-video'
+                      style={{ backgroundColor: 'black', marginRight:'2vh' }}
+                      width='320'
+                      height='240'
+                      src={item.source}
+                      autoPlay={item.autoplay}
+
+
+                  ></video>))
+
+                }
+
+                </Group>
                 <strong className='d-block'>Echo logs:</strong>
                 <div
                     id='echo-logs'

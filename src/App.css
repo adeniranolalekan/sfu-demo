@@ -27,7 +27,9 @@ pre {
 .null {
   color: magenta;
 }
-
+.video{
+  margin-right: 2vh;
+}
 .key {
   color: red;
 }
