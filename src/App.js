@@ -1052,14 +1052,15 @@ function App() {
       });
       if(valueExist===false){
 
+        let myRef = React.createRef();
         remoteStream = streams[0];
-        let  newArray = [...streamArray, {key:streamId,source:remoteStream,autoplay:true}];
+        let  newArray = [...streamArray, {key:streamId,ref:myRef,autoplay:true}];
         setStreamArray(newArray);
         api.streamId = remoteStream.id;
         const str = JSON.stringify(api, null, 2);
         setApi(syntaxHighlight(str));
         console.log(streamArray)
-
+        myRef.current.srcObject=remoteStream
 
       }
 
@@ -1307,7 +1308,7 @@ function App() {
                       style={{ backgroundColor: 'black', marginRight:'2vh' }}
                       width='320'
                       height='240'
-                      src={item.source}
+                      ref={item.ref}
                       autoPlay={item.autoplay}
 
 
