@@ -95,8 +95,8 @@ socket.onmessage = async (event) => {
       // });
     };
     // console.log(resp.result);
-    pc.setRemoteDescription(resp.desc);
-    iceCandidates.forEach(pc.addIceCandidate);
+    await pc.setRemoteDescription(resp.desc);
+    iceCandidates.forEach((c) => pc.addIceCandidate(c));
   } else if (resp.event === 'sfuOffer') {
     log(`Got offer notification`);
     await pc.setRemoteDescription(resp.params);
@@ -212,8 +212,8 @@ const handleJoin = async () => {
       token:
         'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjA1MjYzMjczLCJleHAiOjE2MDY0MzE2MDB9.Iw3NcKZB2ICtBDqmH1ugt_f0kWzApPBzmRw0wrHdQVQS5OiTLyLcMS7xIUJY0awNeSaFitcrAUEV7isXUC0mgQ',
       desc: pc.localDescription,
-      conversationId: '86080664',
-      appointmentId: '86080664',
+      conversationId: '245446262',
+      appointmentId: '245446262',
     })
   );
 
