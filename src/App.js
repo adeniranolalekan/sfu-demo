@@ -31,9 +31,12 @@ const config = {
 };
 
 const socket = new WebSocket(
-  'wss://5ifn4aitu6.execute-api.eu-central-1.amazonaws.com/Dev?id=USR-89308c3a-30c4-4400-8313-eb9b0d31b056'
+  'wss://fhj0m0aeug.execute-api.eu-central-1.amazonaws.com/sfu?id=USR-89308c3a-30c4-4400-8313-eb9b0d31b056'
 );
-const pc = new RTCPeerConnection(config);
+const pubPC = new RTCPeerConnection(config);
+const subPC = new RTCPeerConnection(config);
+//let apiSub =new RTCDataChannel();
+const API_CHANNEL = 'ion-sfu';
 let localVideo;
 let remoteVideo;
 let simulcast = false;
@@ -42,12 +45,17 @@ socket.onopen = () => {
   console.log('CONNECTED');
 };
 
-const iceCandidates = [];
+const pubIceCandidates = [];
+let subIceCandidates = [];
 
-pc.oniceconnectionstatechange = () =>
-  log(`ICE connection state: ${pc.iceConnectionState}`);
 
-pc.onicecandidate = (event) => {
+
+pubPC.oniceconnectionstatechange = () =>
+  log(`ICE connection state: ${pubPC.iceConnectionState}`);
+
+
+
+pubPC.onicecandidate = (event) => {
   if (event.candidate !== null) {
     console.log('signal' + conversationId);
     socket.send(
@@ -61,7 +69,27 @@ pc.onicecandidate = (event) => {
         sdpMLineIndex: event.candidate.sdpMLineIndex,
         usernameFragment: event.candidate.usernameFragment,
         conversationId: conversationId,
+        target:0,
       })
+    );
+  }
+};
+subPC.onicecandidate = (event) => {
+  if (event.candidate !== null) {
+    console.log('signal' + conversationId);
+    socket.send(
+        JSON.stringify({
+          action: 'subscribe',
+          event: 'trickle',
+          sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
+          iceCandidate: event.candidate.candidate,
+          sdpMid: event.candidate.sdpMid,
+          candidate: event.candidate.candidate,
+          sdpMLineIndex: event.candidate.sdpMLineIndex,
+          usernameFragment: event.candidate.usernameFragment,
+          conversationId: conversationId,
+          target:1,
+        })
     );
   }
 };
@@ -72,10 +100,10 @@ socket.onmessage = async (event) => {
     conversationId = resp.conversationId;
     log(`Got publish answer`);
     // Hook this here so it's not called before joining
-    pc.onnegotiationneeded = async function () {
-      log('Renegotiating');
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+    pubPC.onnegotiationneeded = async function () {
+      log('Renegotiating'+conversationId);
+      const offer = await pubPC.createOffer();
+      await pubPC.setLocalDescription(offer);
       const id = Math.random().toString();
       socket.send(
         JSON.stringify({
@@ -83,6 +111,7 @@ socket.onmessage = async (event) => {
           event: 'offer',
           sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
           desc: offer,
+          conversationId: conversationId,
         })
       );
 
@@ -95,13 +124,23 @@ socket.onmessage = async (event) => {
       // });
     };
     // console.log(resp.result);
-    pc.setRemoteDescription(resp.desc);
-    iceCandidates.forEach(pc.addIceCandidate);
+    await pubPC.setRemoteDescription(resp.desc);
+    pubIceCandidates.forEach((c) => pubPC.addIceCandidate(c));
   } else if (resp.event === 'sfuOffer') {
     log(`Got offer notification`);
-    await pc.setRemoteDescription(resp.params);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    await subPC.setRemoteDescription(resp.desc);
+    console.log(subIceCandidates.length)
+    try {
+      if(subPC) {
+        subIceCandidates.forEach((c) => subPC.addIceCandidate(c));
+        subIceCandidates = [];
+      }
+    }catch (e) {
+      console.log(e)
+    }
+
+    const answer = await subPC.createAnswer();
+    await subPC.setLocalDescription(answer);
 
     const id = Math.random().toString();
     log(`Sending answer`);
@@ -122,17 +161,22 @@ socket.onmessage = async (event) => {
       usernameFragment: resp.usernameFragment,
     };
 
-    console.log(iceCandidate);
 
-    if (!pc.remoteDescription?.type) {
-      iceCandidates.push(iceCandidate);
-    } else {
-      pc.addIceCandidate({
-        candidate: resp.candidate,
-        sdpMid: resp.sdpMid,
-        sdpMLineIndex: resp.sdpMLineIndex,
-        usernameFragment: resp.usernameFragment,
-      }).catch(log);
+    if(resp.target===0) {
+
+        if (!pubPC || !pubPC.remoteDescription?.type) {
+            pubIceCandidates.push(iceCandidate);
+        } else {
+          console.log("add candidate for publisher");
+            pubPC.addIceCandidate(iceCandidate).catch(log);
+        }
+    }else {
+        if (!subPC || !subPC.remoteDescription?.type) {
+            subIceCandidates.push(iceCandidate);
+        } else {
+          console.log("add candidate for subscriber");
+            subPC.addIceCandidate(iceCandidate).catch(log);
+        }
     }
 
     setTimeout(() => startEcho(), 500);
@@ -165,16 +209,16 @@ function syntaxHighlight(json) {
 }
 
 const startEcho = () => {
-  pc.addTransceiver('video', {
+  pubPC.addTransceiver('video', {
     direction: 'sendrecv',
   });
-  pc.addTransceiver('audio', {
+  pubPC.addTransceiver('audio', {
     direction: 'sendrecv',
   });
 };
 
 const add = () => {
-  pc.addTrack(localStream.getAudioTracks()[0], localStream);
+  pubPC.addTrack(localStream.getAudioTracks()[0], localStream);
 };
 
 let localStream;
@@ -182,15 +226,15 @@ let remoteStream;
 let pid;
 
 // remotepc
-let sendChannel = pc.createDataChannel('ion-sfu');
-sendChannel.onclose = () => echoLog('sendChannel has closed');
-sendChannel.onopen = () => {
-  echoLog('sendChannel has opened');
-};
-sendChannel.onmessage = (e) =>
-  echoLog(
-    `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
-  );
+let sendChannel = pubPC.createDataChannel('ion-sfu');
+// sendChannel.onclose = () => echoLog('sendChannel has closed');
+// sendChannel.onopen = () => {
+//   echoLog('sendChannel has opened');
+// };
+// sendChannel.onmessage = (e) =>
+//   echoLog(
+//     `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
+//   );
 
 const api = {
   streamId: '',
@@ -199,8 +243,8 @@ const api = {
 };
 
 const handleJoin = async () => {
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
+  const offer = await pubPC.createOffer();
+  await pubPC.setLocalDescription(offer);
   const id = Math.random().toString();
   console.log(offer);
 
@@ -210,10 +254,10 @@ const handleJoin = async () => {
       event: 'join',
       sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
       token:
-        'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjA1MjYzMjczLCJleHAiOjE2MDY0MzE2MDB9.Iw3NcKZB2ICtBDqmH1ugt_f0kWzApPBzmRw0wrHdQVQS5OiTLyLcMS7xIUJY0awNeSaFitcrAUEV7isXUC0mgQ',
-      desc: pc.localDescription,
-      conversationId: '86080664',
-      appointmentId: '86080664',
+        'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjEyMzQzNzkxLCJleHAiOjE2MTM1MjAwMDB9.T-S5yDbm4lpQnX-tpaPxl4jWehA5byYCzdvlKvjxqrj2lzl5YBnOu_QTZB2nSHj0OjtE83jotOJSZnYK8DgZMw',
+      desc: pubPC.localDescription,
+      conversationId: '374554425',
+      appointmentId: '374554425',
     })
   );
 
@@ -250,6 +294,20 @@ const handleJoin = async () => {
   //     pc.setRemoteDescription(resp.result)
   //   }
   // });
+
+  subPC.ondatachannel = (ev) => {
+    if (ev.channel.label === API_CHANNEL) {
+      //apiSub = ev.channel;
+      return;
+    }
+
+    ev.channel.onmessage= (e) =>
+        echoLog(
+            `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
+        );
+  };
+
+
 };
 
 function App() {
@@ -283,7 +341,7 @@ function App() {
     let bytesPrev;
     let timestampPrev;
     setInterval(() => {
-      pc.getStats(null).then((results) => {
+      pubPC.getStats(null).then((results) => {
         results.forEach((report) => {
           const now = report.timestamp;
 
@@ -346,7 +404,7 @@ function App() {
 
         log('Publishing stream');
         if (simulcast) {
-          pc.addTransceiver(localStream.getVideoTracks()[0], {
+          pubPC.addTransceiver(localStream.getVideoTracks()[0], {
             streams: [localStream],
             direction: 'sendrecv',
             sendEncodings: [
@@ -365,11 +423,11 @@ function App() {
               },
             ],
           });
-          pc.addTrack(stream.getAudioTracks()[0], localStream);
+          pubPC.addTrack(stream.getAudioTracks()[0], localStream);
         } else {
           localStream.getTracks().forEach((track) => {
             log('add track');
-            pc.addTrack(track, localStream);
+            pubPC.addTrack(track, localStream);
           });
         }
 
@@ -397,7 +455,7 @@ function App() {
   }, [window.innerWidth, window.innerHeight]);
 
   React.useEffect(() => {
-    pc.ontrack = function ({ track, streams }) {
+    subPC.ontrack = function ({ track, streams }) {
       echoLog('Got remote track');
       streamId = streams[0].id;
       streamArray.every((item) => {
