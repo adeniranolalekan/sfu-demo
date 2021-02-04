@@ -17,7 +17,9 @@ const echoLog = (msg) => {
   console.log('echo:' + msg);
 };
 let conversationId = '';
+let sender ='USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
 const config = {
+  codec: 'vp8',
   iceServers: [
     {
       urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
@@ -62,7 +64,7 @@ pubPC.onicecandidate = (event) => {
       JSON.stringify({
         action: 'subscribe',
         event: 'trickle',
-        sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
+        sender: sender,
         iceCandidate: event.candidate.candidate,
         sdpMid: event.candidate.sdpMid,
         candidate: event.candidate.candidate,
@@ -81,7 +83,7 @@ subPC.onicecandidate = (event) => {
         JSON.stringify({
           action: 'subscribe',
           event: 'trickle',
-          sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
+          sender: sender,
           iceCandidate: event.candidate.candidate,
           sdpMid: event.candidate.sdpMid,
           candidate: event.candidate.candidate,
@@ -109,7 +111,7 @@ socket.onmessage = async (event) => {
         JSON.stringify({
           action: 'subscribe',
           event: 'offer',
-          sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
+          sender: sender,
           desc: offer,
           conversationId: conversationId,
         })
@@ -148,7 +150,7 @@ socket.onmessage = async (event) => {
       JSON.stringify({
         action: 'subscribe',
         event: 'answer',
-        sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
+        sender: sender,
         desc: answer,
         conversationId: conversationId,
       })
@@ -252,7 +254,7 @@ const handleJoin = async () => {
     JSON.stringify({
       action: 'subscribe',
       event: 'join',
-      sender: 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056',
+      sender: sender,
       token:
         'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjEyMzQzNzkxLCJleHAiOjE2MTM1MjAwMDB9.T-S5yDbm4lpQnX-tpaPxl4jWehA5byYCzdvlKvjxqrj2lzl5YBnOu_QTZB2nSHj0OjtE83jotOJSZnYK8DgZMw',
       desc: pubPC.localDescription,
@@ -380,6 +382,20 @@ function App() {
       setApi(syntaxHighlight(str));
     }
   }, [audioSettings]);
+
+  const start1=(sc)=>{
+    start(sc)
+  }
+  const start2=(sc)=>{
+    sender='USR-16b42006-b8c7-4235-abf5-153a55c9bf92';
+    start(sc)
+  }
+  const start3=(sc)=>{
+    start(sc)
+  }
+  const start4=(sc)=>{
+    start(sc)
+  }
 
   const start = (sc) => {
     simulcast = sc;
@@ -525,10 +541,37 @@ function App() {
                 type='button'
                 className='btn btn-primary'
                 onClick={() => {
-                  start(false);
+                  start1(false);
                 }}
               >
-                start
+                start1
+              </button>
+              <button
+                  type='button'
+                  className='btn btn-primary'
+                  onClick={() => {
+                    start2(false);
+                  }}
+              >
+                start2
+              </button>
+              <button
+                  type='button'
+                  className='btn btn-primary'
+                  onClick={() => {
+                    start3(false);
+                  }}
+              >
+                start3
+              </button>
+              <button
+                  type='button'
+                  className='btn btn-primary'
+                  onClick={() => {
+                    start4(false);
+                  }}
+              >
+                start4
               </button>
               <button
                 type='button'
