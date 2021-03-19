@@ -37,42 +37,14 @@ const config = {
       urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
       username: 'conectar',
       credential: 'ZVp1NaagEN7r',
-      credentialType:'password'
+      credentialType: 'password',
     },
     {
       urls: 'stun:stun.l.google.com:19302',
     },
   ],
 };
-function checkTURNServer(turnConfig, timeout){
 
-  return new Promise(function(resolve, reject){
-
-    setTimeout(function(){
-      if(promiseResolved) return;
-      resolve(false);
-      promiseResolved = true;
-    }, timeout || 5000);
-
-    var promiseResolved = false
-        , myPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection   //compatibility for firefox and chrome
-        , pc = new myPeerConnection({iceServers:[turnConfig]})
-        , noop = function(){};
-    pc.createDataChannel("");    //create a bogus data channel
-    pc.createOffer(function(sdp){
-      if(sdp.sdp.indexOf('typ relay') > -1){ // sometimes sdp contains the ice candidates...
-        promiseResolved = true;
-        resolve(true);
-      }
-      pc.setLocalDescription(sdp, noop, noop);
-    }, noop);    // create offer and set local description
-    pc.onicecandidate = function(ice){  //listen for candidate events
-      if(promiseResolved || !ice || !ice.candidate || !ice.candidate.candidate || !(ice.candidate.candidate.indexOf('typ relay')>-1))  return;
-      promiseResolved = true;
-      resolve(true);
-    };
-  });
-}
 
 const pubPC = new RTCPeerConnection(config);
 const subPC = new RTCPeerConnection(config);
@@ -106,8 +78,8 @@ pubPC.onicecandidate = (event) => {
       sdpMLineIndex: event.candidate.sdpMLineIndex,
       usernameFragment: event.candidate.usernameFragment,
       conversationId: conversationId,
-      target:0,
-    })
+      target: 0,
+    });
 
     // socket.send(
     //   JSON.stringify({
@@ -138,8 +110,8 @@ subPC.onicecandidate = (event) => {
       sdpMLineIndex: event.candidate.sdpMLineIndex,
       usernameFragment: event.candidate.usernameFragment,
       conversationId: conversationId,
-      target:1,
-    })
+      target: 1,
+    });
     // socket.send(
     //     JSON.stringify({
     //       action: 'subscribe',
@@ -159,17 +131,17 @@ subPC.onicecandidate = (event) => {
 
 async function onmessage(event) {
   console.log(event);
-  const resp = JSON.parse(event.data)
+  const resp = JSON.parse(event.data);
 
   if (resp.event === 'sfuAnswer') {
     conversationId = resp.conversationId;
     log(`Got publish answer`);
     // Hook this here so it's not called before joining
     pubPC.onnegotiationneeded = async function () {
-      log('Renegotiating'+conversationId);
+      log('Renegotiating' + conversationId);
       const offer = await pubPC.createOffer();
       await pubPC.setLocalDescription(offer);
-      console.log("offer: "+offer)
+      console.log('offer: ' + offer);
       const id = Math.random().toString();
       demoWebsocket.sendEvent({
         action: 'subscribe',
@@ -177,7 +149,7 @@ async function onmessage(event) {
         sender: sender,
         desc: offer,
         conversationId: conversationId,
-      })
+      });
       // socket.send(
       //   JSON.stringify({
       //     action: 'subscribe',
@@ -201,19 +173,22 @@ async function onmessage(event) {
     pubIceCandidates.forEach((c) => pubPC.addIceCandidate(c));
   } else if (resp.event === 'sfuOffer') {
     const offer = await subPC.createOffer();
-    console.log(offer)
-    log(`Got offer notification: `+JSON.stringify(new RTCSessionDescription(resp.desc)));
+    console.log(offer);
+    log(
+      `Got offer notification: ` +
+        JSON.stringify(new RTCSessionDescription(resp.desc))
+    );
     await subPC.setRemoteDescription(new RTCSessionDescription(resp.desc));
-    console.log(subIceCandidates.length)
+    console.log(subIceCandidates.length);
     try {
-      if(subPC) {
+      if (subPC) {
         subIceCandidates.forEach((c) => subPC.addIceCandidate(c));
         subIceCandidates = [];
       }
-    }catch (e) {
-      console.log(e)
+    } catch (e) {
+      console.log(e);
     }
-    log(`attempt Sending answer`);
+
     const answer =  subPC.createAnswer().then(a=>{
       subPC.setLocalDescription(a)
       log(`Sending answer`+ JSON.stringify(a));
@@ -223,7 +198,7 @@ async function onmessage(event) {
         sender: sender,
         desc: a,
         conversationId: conversationId,
-      })
+      });
       // socket.send(
       //     JSON.stringify({
       //       action: 'subscribe',
@@ -245,27 +220,25 @@ async function onmessage(event) {
       usernameFragment: resp.usernameFragment,
     };
 
-
-    if(resp.target===0) {
-
-        if (!pubPC || !pubPC.remoteDescription?.type) {
-            pubIceCandidates.push(iceCandidate);
-        } else {
-          console.log("add candidate for publisher");
-            pubPC.addIceCandidate(iceCandidate).catch(log);
-        }
-    }else {
-        if (!subPC || !subPC.remoteDescription?.type) {
-            subIceCandidates.push(iceCandidate);
-        } else {
-          console.log("add candidate for subscriber");
-            subPC.addIceCandidate(iceCandidate).catch(log);
-        }
+    if (resp.target === 0) {
+      if (!pubPC || !pubPC.remoteDescription?.type) {
+        pubIceCandidates.push(iceCandidate);
+      } else {
+        console.log('add candidate for publisher');
+        pubPC.addIceCandidate(iceCandidate).catch(log);
+      }
+    } else {
+      if (!subPC || !subPC.remoteDescription?.type) {
+        subIceCandidates.push(iceCandidate);
+      } else {
+        console.log('add candidate for subscriber');
+        subPC.addIceCandidate(iceCandidate).catch(log);
+      }
     }
 
     setTimeout(() => startEcho(), 500);
   }
-};
+}
 
 function syntaxHighlight(json) {
   json = json
@@ -337,16 +310,27 @@ const handleJoin = async () => {
   const offer = await pubPC.createOffer();
   await pubPC.setLocalDescription(offer);
 
+  console.log({ desc: pubPC.localDescription });
+
   console.log(offer);
   demoWebsocket.sendEvent({
     action: 'subscribe',
     event: 'join',
     sender: sender,
-    token:   token,
+    token: token,
     desc: pubPC.localDescription,
-    conversationId: '775551795',
-    appointmentId: '775551795',
-  })
+    conversationId: conversationId,
+    appointmentId: conversationId,
+  });
+  demoWebsocket.sendEvent({
+    action: 'subscribe',
+    event: 'join_sfu',
+    sender: sender,
+    token: token,
+    desc: pubPC.localDescription,
+    conversationId: conversationId,
+    appointmentId: conversationId,
+  });
   // socket.send(
   //   JSON.stringify({
   //     action: 'subscribe',
@@ -400,10 +384,10 @@ const handleJoin = async () => {
       return;
     }
 
-    ev.channel.onmessage= (e) =>
-        echoLog(
-            `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
-        );
+    ev.channel.onmessage = (e) =>
+      echoLog(
+        `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
+      );
   };
 
 
@@ -417,13 +401,13 @@ function App() {
   const [videoSettings, SVS] = React.useState('high');
   const [audioSettings, SAS] = React.useState(true);
   const [streamArray, setStreamArray] = React.useState([]);
-  const [id, setId] = React.useState('USR-89308c3a-30c4-4400-8313-eb9b0d31b056');
+  const [id, setId] = React.useState(
+    'USR-89308c3a-30c4-4400-8313-eb9b0d31b056'
+  );
   const join = () => {
     setJoining(true);
-    handleJoin().then(r => {});
+    handleJoin().then((r) => {});
   };
-
-
 
   const setVideoSettings = (value) => () => SVS(value);
   const setAudioSettings = (value) => () => SAS(value);
@@ -483,9 +467,6 @@ function App() {
   }, [audioSettings]);
 let connect=()=>{
   demoWebsocket=new DemoWebsocket(id,onmessage)
-  checkTURNServer(turnConfig).then(function(bool){
-    console.log('is TURN server active? ', bool? 'yes':'no');
-  }).catch(console.error.bind(console));
 }
  let start1=(sc)=>{
   if(demoWebsocket) {
@@ -658,14 +639,18 @@ let connect=()=>{
 
               <label>
                 User Id:
-                <input type="text" value={id} onChange={e => setId(e.target.value)}/>
+                <input
+                  type='text'
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                />
               </label>
               <button
-                  type='button'
-                  className='btn btn-primary'
-                  onClick={() => {
-                    connect();
-                  }}
+                type='button'
+                className='btn btn-primary'
+                onClick={() => {
+                  connect();
+                }}
               >
                 connect
               </button>
