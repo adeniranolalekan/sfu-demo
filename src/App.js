@@ -3,7 +3,7 @@ import logo from './logo.svg';
 import swal from 'sweetalert';
 import './App.css';
 import Group from './Group.js';
-import DemoWebsocket from "./DemoWebsocket";
+import DemoWebsocket from './DemoWebsocket';
 
 let localLogs = '',
   echoLogs = '';
@@ -18,10 +18,11 @@ const echoLog = (msg) => {
   //echoLogs += `${msg} </br>`;
   console.log('echo:' + msg);
 };
-let demoWebsocket
-let conversationId = '';
-let sender ='USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
-let token='eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjEzMDE2MzYyLCJleHAiOjE2MTQyMTEyMDB9.C9nhankmZf0VX9MC-YwFG0MzfcBJEVNDLFf8uaNWv60TBBOOPAkIzFAR_HQ0wAV5gWpTLKdWK4gvATvnkqAnWw'
+let demoWebsocket;
+let conversationId = '12298147';
+let sender = 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
+let token =
+  'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjE1MzIyNDQxLCJleHAiOjE2MTY0NTc2MDB9.TDQmMNNL9BYK0yWmZ_zDlhejzp59LEkmma5mHYxjCv5yyIIwwYbgJg3IRu3W3egVbCnoE9fSBKhWlrVVlqOySw';
 const config = {
   codec: 'vp8' | 'vp9' | 'h264',
   iceServers: [
@@ -29,14 +30,13 @@ const config = {
       urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
       username: 'conectar',
       credential: 'ZVp1NaagEN7r',
-      credentialType:'password'
+      credentialType: 'password',
     },
     {
       urls: 'stun:stun.l.google.com:19302',
     },
   ],
 };
-
 
 const pubPC = new RTCPeerConnection(config);
 const subPC = new RTCPeerConnection(config);
@@ -46,16 +46,11 @@ let localVideo;
 let remoteVideo;
 let simulcast = false;
 
-
-
 const pubIceCandidates = [];
 let subIceCandidates = [];
 
-
-
 pubPC.oniceconnectionstatechange = () =>
   log(`ICE connection state: ${pubPC.iceConnectionState}`);
-
 
 pubPC.onicecandidate = (event) => {
   if (event.candidate !== null) {
@@ -70,8 +65,8 @@ pubPC.onicecandidate = (event) => {
       sdpMLineIndex: event.candidate.sdpMLineIndex,
       usernameFragment: event.candidate.usernameFragment,
       conversationId: conversationId,
-      target:0,
-    })
+      target: 0,
+    });
 
     // socket.send(
     //   JSON.stringify({
@@ -102,8 +97,8 @@ subPC.onicecandidate = (event) => {
       sdpMLineIndex: event.candidate.sdpMLineIndex,
       usernameFragment: event.candidate.usernameFragment,
       conversationId: conversationId,
-      target:1,
-    })
+      target: 1,
+    });
     // socket.send(
     //     JSON.stringify({
     //       action: 'subscribe',
@@ -123,17 +118,17 @@ subPC.onicecandidate = (event) => {
 
 async function onmessage(event) {
   console.log(event);
-  const resp = JSON.parse(event.data)
+  const resp = JSON.parse(event.data);
 
   if (resp.event === 'sfuAnswer') {
     conversationId = resp.conversationId;
     log(`Got publish answer`);
     // Hook this here so it's not called before joining
     pubPC.onnegotiationneeded = async function () {
-      log('Renegotiating'+conversationId);
+      log('Renegotiating' + conversationId);
       const offer = await pubPC.createOffer();
       await pubPC.setLocalDescription(offer);
-      console.log("offer: "+offer)
+      console.log('offer: ' + offer);
       const id = Math.random().toString();
       demoWebsocket.sendEvent({
         action: 'subscribe',
@@ -141,7 +136,7 @@ async function onmessage(event) {
         sender: sender,
         desc: offer,
         conversationId: conversationId,
-      })
+      });
       // socket.send(
       //   JSON.stringify({
       //     action: 'subscribe',
@@ -165,29 +160,32 @@ async function onmessage(event) {
     pubIceCandidates.forEach((c) => pubPC.addIceCandidate(c));
   } else if (resp.event === 'sfuOffer') {
     const offer = await subPC.createOffer();
-    console.log(offer)
-    log(`Got offer notification: `+JSON.stringify(new RTCSessionDescription(resp.desc)));
+    console.log(offer);
+    log(
+      `Got offer notification: ` +
+        JSON.stringify(new RTCSessionDescription(resp.desc))
+    );
     await subPC.setRemoteDescription(new RTCSessionDescription(resp.desc));
-    console.log(subIceCandidates.length)
+    console.log(subIceCandidates.length);
     try {
-      if(subPC) {
+      if (subPC) {
         subIceCandidates.forEach((c) => subPC.addIceCandidate(c));
         subIceCandidates = [];
       }
-    }catch (e) {
-      console.log(e)
+    } catch (e) {
+      console.log(e);
     }
 
-    const answer =  subPC.createAnswer().then(a=>{
-      subPC.setLocalDescription(a)
-      log(`Sending answer`+ JSON.stringify(a));
+    const answer = subPC.createAnswer().then((a) => {
+      subPC.setLocalDescription(a);
+      log(`Sending answer` + JSON.stringify(a));
       demoWebsocket.sendEvent({
         action: 'subscribe',
         event: 'answer',
         sender: sender,
         desc: a,
         conversationId: conversationId,
-      })
+      });
       // socket.send(
       //     JSON.stringify({
       //       action: 'subscribe',
@@ -198,9 +196,6 @@ async function onmessage(event) {
       //     })
       // );
     });
-
-
-
   } else if (resp.event === 'sfuTrickle') {
     const iceCandidate = {
       candidate: resp.candidate,
@@ -209,27 +204,25 @@ async function onmessage(event) {
       usernameFragment: resp.usernameFragment,
     };
 
-
-    if(resp.target===0) {
-
-        if (!pubPC || !pubPC.remoteDescription?.type) {
-            pubIceCandidates.push(iceCandidate);
-        } else {
-          console.log("add candidate for publisher");
-            pubPC.addIceCandidate(iceCandidate).catch(log);
-        }
-    }else {
-        if (!subPC || !subPC.remoteDescription?.type) {
-            subIceCandidates.push(iceCandidate);
-        } else {
-          console.log("add candidate for subscriber");
-            subPC.addIceCandidate(iceCandidate).catch(log);
-        }
+    if (resp.target === 0) {
+      if (!pubPC || !pubPC.remoteDescription?.type) {
+        pubIceCandidates.push(iceCandidate);
+      } else {
+        console.log('add candidate for publisher');
+        pubPC.addIceCandidate(iceCandidate).catch(log);
+      }
+    } else {
+      if (!subPC || !subPC.remoteDescription?.type) {
+        subIceCandidates.push(iceCandidate);
+      } else {
+        console.log('add candidate for subscriber');
+        subPC.addIceCandidate(iceCandidate).catch(log);
+      }
     }
 
     setTimeout(() => startEcho(), 500);
   }
-};
+}
 
 function syntaxHighlight(json) {
   json = json
@@ -301,16 +294,27 @@ const handleJoin = async () => {
   const offer = await pubPC.createOffer();
   await pubPC.setLocalDescription(offer);
 
+  console.log({ desc: pubPC.localDescription });
+
   console.log(offer);
   demoWebsocket.sendEvent({
     action: 'subscribe',
     event: 'join',
     sender: sender,
-    token:   token,
+    token: token,
     desc: pubPC.localDescription,
-    conversationId: '745470294',
-    appointmentId: '745470294',
-  })
+    conversationId: conversationId,
+    appointmentId: conversationId,
+  });
+  demoWebsocket.sendEvent({
+    action: 'subscribe',
+    event: 'join_sfu',
+    sender: sender,
+    token: token,
+    desc: pubPC.localDescription,
+    conversationId: conversationId,
+    appointmentId: conversationId,
+  });
   // socket.send(
   //   JSON.stringify({
   //     action: 'subscribe',
@@ -364,13 +368,11 @@ const handleJoin = async () => {
       return;
     }
 
-    ev.channel.onmessage= (e) =>
-        echoLog(
-            `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
-        );
+    ev.channel.onmessage = (e) =>
+      echoLog(
+        `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
+      );
   };
-
-
 };
 
 function App() {
@@ -381,13 +383,13 @@ function App() {
   const [videoSettings, SVS] = React.useState('high');
   const [audioSettings, SAS] = React.useState(true);
   const [streamArray, setStreamArray] = React.useState([]);
-  const [id, setId] = React.useState('USR-89308c3a-30c4-4400-8313-eb9b0d31b056');
+  const [id, setId] = React.useState(
+    'USR-89308c3a-30c4-4400-8313-eb9b0d31b056'
+  );
   const join = () => {
     setJoining(true);
-    handleJoin().then(r => {});
+    handleJoin().then((r) => {});
   };
-
-
 
   const setVideoSettings = (value) => () => SVS(value);
   const setAudioSettings = (value) => () => SAS(value);
@@ -445,35 +447,35 @@ function App() {
       setApi(syntaxHighlight(str));
     }
   }, [audioSettings]);
-let connect=()=>{
-  demoWebsocket=new DemoWebsocket(id,onmessage)
-}
- let start1=(sc)=>{
-  if(demoWebsocket) {
-    if (demoWebsocket.socket.readyState === 1) {
-      sender=id
-      if (sender==='USR-16b42006-b8c7-4235-abf5-153a55c9bf92') {
-        token = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w'
+  let connect = () => {
+    demoWebsocket = new DemoWebsocket(id, onmessage);
+  };
+  let start1 = (sc) => {
+    if (demoWebsocket) {
+      if (demoWebsocket.socket.readyState === 1) {
+        sender = id;
+        if (sender === 'USR-16b42006-b8c7-4235-abf5-153a55c9bf92') {
+          token =
+            'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w';
+        }
+        start(sc);
       }
-      start(sc)
-
+    } else {
+      swal('connect to websocket first');
     }
-  }else {
-    swal('connect to websocket first')
-  }
-  }
-  let start2=(sc)=>{
-    sender='USR-16b42006-b8c7-4235-abf5-153a55c9bf92';
-    token='eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w'
-      start(sc)
-
-  }
-  const start3=(sc)=>{
-    start(sc)
-  }
-  const start4=(sc)=>{
-    start(sc)
-  }
+  };
+  let start2 = (sc) => {
+    sender = 'USR-16b42006-b8c7-4235-abf5-153a55c9bf92';
+    token =
+      'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w';
+    start(sc);
+  };
+  const start3 = (sc) => {
+    start(sc);
+  };
+  const start4 = (sc) => {
+    start(sc);
+  };
 
   const start = (sc) => {
     simulcast = sc;
@@ -614,19 +616,21 @@ let connect=()=>{
             id='start-btns'
             style={{ display: joining ? 'none' : 'block' }}
           >
-
             <div className='col-12'>
-
               <label>
                 User Id:
-                <input type="text" value={id} onChange={e => setId(e.target.value)}/>
+                <input
+                  type='text'
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                />
               </label>
               <button
-                  type='button'
-                  className='btn btn-primary'
-                  onClick={() => {
-                    connect();
-                  }}
+                type='button'
+                className='btn btn-primary'
+                onClick={() => {
+                  connect();
+                }}
               >
                 connect
               </button>
