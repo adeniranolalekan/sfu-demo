@@ -18,6 +18,14 @@ const echoLog = (msg) => {
   //echoLogs += `${msg} </br>`;
   console.log('echo:' + msg);
 };
+const turnConfig={
+  // urls: 'turn:127.0.0.1:3478',
+  // username: 'ion',
+  // credential: 'pass'
+  urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
+  username: 'conectar',
+  credential: 'ZVp1NaagEN7r'
+}
 let demoWebsocket
 let conversationId = '';
 let sender ='USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
@@ -36,7 +44,35 @@ const config = {
     },
   ],
 };
+function checkTURNServer(turnConfig, timeout){
 
+  return new Promise(function(resolve, reject){
+
+    setTimeout(function(){
+      if(promiseResolved) return;
+      resolve(false);
+      promiseResolved = true;
+    }, timeout || 5000);
+
+    var promiseResolved = false
+        , myPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection   //compatibility for firefox and chrome
+        , pc = new myPeerConnection({iceServers:[turnConfig]})
+        , noop = function(){};
+    pc.createDataChannel("");    //create a bogus data channel
+    pc.createOffer(function(sdp){
+      if(sdp.sdp.indexOf('typ relay') > -1){ // sometimes sdp contains the ice candidates...
+        promiseResolved = true;
+        resolve(true);
+      }
+      pc.setLocalDescription(sdp, noop, noop);
+    }, noop);    // create offer and set local description
+    pc.onicecandidate = function(ice){  //listen for candidate events
+      if(promiseResolved || !ice || !ice.candidate || !ice.candidate.candidate || !(ice.candidate.candidate.indexOf('typ relay')>-1))  return;
+      promiseResolved = true;
+      resolve(true);
+    };
+  });
+}
 
 const pubPC = new RTCPeerConnection(config);
 const subPC = new RTCPeerConnection(config);
@@ -177,7 +213,7 @@ async function onmessage(event) {
     }catch (e) {
       console.log(e)
     }
-
+    log(`attempt Sending answer`);
     const answer =  subPC.createAnswer().then(a=>{
       subPC.setLocalDescription(a)
       log(`Sending answer`+ JSON.stringify(a));
@@ -308,8 +344,8 @@ const handleJoin = async () => {
     sender: sender,
     token:   token,
     desc: pubPC.localDescription,
-    conversationId: '745470294',
-    appointmentId: '745470294',
+    conversationId: '775551795',
+    appointmentId: '775551795',
   })
   // socket.send(
   //   JSON.stringify({
@@ -447,6 +483,9 @@ function App() {
   }, [audioSettings]);
 let connect=()=>{
   demoWebsocket=new DemoWebsocket(id,onmessage)
+  checkTURNServer(turnConfig).then(function(bool){
+    console.log('is TURN server active? ', bool? 'yes':'no');
+  }).catch(console.error.bind(console));
 }
  let start1=(sc)=>{
   if(demoWebsocket) {
