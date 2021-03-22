@@ -232,6 +232,16 @@ async function onmessage(event) {
 
       setTimeout(() => startEcho(), 500);
     }
+  } else if (data.event === 'participants') {
+    demoWebsocket.sendEvent({
+      action: 'subscribe',
+      event: 'join_sfu',
+      sender: sender,
+      token: token,
+      desc: pubPC.localDescription,
+      conversationId: conversationId,
+      appointmentId: '378964606',
+    });
   }
 }
 
@@ -311,15 +321,6 @@ const handleJoin = async () => {
   demoWebsocket.sendEvent({
     action: 'subscribe',
     event: 'join',
-    sender: sender,
-    token: token,
-    desc: pubPC.localDescription,
-    conversationId: conversationId,
-    appointmentId: '378964606',
-  });
-  demoWebsocket.sendEvent({
-    action: 'subscribe',
-    event: 'join_sfu',
     sender: sender,
     token: token,
     desc: pubPC.localDescription,
