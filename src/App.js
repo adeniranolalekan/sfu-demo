@@ -3,7 +3,7 @@ import logo from './logo.svg';
 import swal from 'sweetalert';
 import './App.css';
 import Group from './Group.js';
-import DemoWebsocket from "./DemoWebsocket";
+import DemoWebsocket from './DemoWebsocket';
 
 let localLogs = '',
   echoLogs = '';
@@ -18,18 +18,19 @@ const echoLog = (msg) => {
   //echoLogs += `${msg} </br>`;
   console.log('echo:' + msg);
 };
-const turnConfig={
+const turnConfig = {
   // urls: 'turn:127.0.0.1:3478',
   // username: 'ion',
   // credential: 'pass'
   urls: 'turn:conectar.demo.forasoft.com?transport=tcp',
   username: 'conectar',
-  credential: 'ZVp1NaagEN7r'
-}
-let demoWebsocket
+  credential: 'ZVp1NaagEN7r',
+};
+let demoWebsocket;
 let conversationId = '';
-let sender ='USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
-let token='eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxNjQxMTgxOCwiZXhwIjoxNjE3NTgwODAwfQ.bLtxyRGzOWtvGo38vMjUljFfPdWgOeoyB7Ki9ELqnipbeMS_yjtfQPdUluapxZsBggMPnDL2Z2vJcr5M4U7JnQ'
+let sender = 'USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
+let token =
+  'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxNjQxMTgxOCwiZXhwIjoxNjE3NTgwODAwfQ.bLtxyRGzOWtvGo38vMjUljFfPdWgOeoyB7Ki9ELqnipbeMS_yjtfQPdUluapxZsBggMPnDL2Z2vJcr5M4U7JnQ';
 const config = {
   codec: 'vp8' | 'vp9' | 'h264',
   iceServers: [
@@ -45,7 +46,6 @@ const config = {
   ],
 };
 
-
 const pubPC = new RTCPeerConnection(config);
 const subPC = new RTCPeerConnection(config);
 //let apiSub =new RTCDataChannel();
@@ -54,16 +54,11 @@ let localVideo;
 let remoteVideo;
 let simulcast = false;
 
-
-
 const pubIceCandidates = [];
 let subIceCandidates = [];
 
-
-
 pubPC.oniceconnectionstatechange = () =>
   log(`ICE connection state: ${pubPC.iceConnectionState}`);
-
 
 pubPC.onicecandidate = (event) => {
   if (event.candidate !== null) {
@@ -130,114 +125,113 @@ subPC.onicecandidate = (event) => {
 };
 
 async function onmessage(event) {
-  console.log(event);
-  const resp = JSON.parse(event.data.params);
+  console.log({ event });
+  const data = JSON.parse(event.data);
+  const resp = data.params;
 
-  if (resp.event === 'sfuAnswer') {
-    conversationId = resp.conversationId;
-    log(`Got publish answer`);
-    // Hook this here so it's not called before joining
-    pubPC.onnegotiationneeded = async function () {
-      log('Renegotiating' + conversationId);
-      const offer = await pubPC.createOffer();
-      await pubPC.setLocalDescription(offer);
-      console.log('offer: ' + offer);
-      const id = Math.random().toString();
-      demoWebsocket.sendEvent({
-        action: 'subscribe',
-        event: 'offer',
-        sender: sender,
-        desc: offer,
-        conversationId: conversationId,
+  if (data.event === 'webrtc') {
+    if (resp.event === 'sfuAnswer') {
+      conversationId = resp.conversationId;
+      log(`Got publish answer`);
+      // Hook this here so it's not called before joining
+      pubPC.onnegotiationneeded = async function () {
+        log('Renegotiating' + conversationId);
+        const offer = await pubPC.createOffer();
+        await pubPC.setLocalDescription(offer);
+        console.log('offer: ' + offer);
+        const id = Math.random().toString();
+        demoWebsocket.sendEvent({
+          action: 'subscribe',
+          event: 'offer',
+          sender: sender,
+          desc: offer,
+          conversationId: conversationId,
+        });
+        // socket.send(
+        //   JSON.stringify({
+        //     action: 'subscribe',
+        //     event: 'offer',
+        //     sender: sender,
+        //     desc: offer,
+        //     conversationId: conversationId,
+        //   })
+        // );
+
+        // socket.addEventListener('message', (event) => {
+        //   const resp = JSON.parse(event.data);
+        //   if (resp.id === id) {
+        //     log(`Got renegotiation answer`);
+        //     pc.setRemoteDescription(resp.result);
+        //   }
+        // });
+      };
+      // console.log(resp.result);
+      await pubPC.setRemoteDescription(resp.desc);
+      pubIceCandidates.forEach((c) => pubPC.addIceCandidate(c));
+    } else if (resp.event === 'sfuOffer') {
+      const offer = await subPC.createOffer();
+      console.log(offer);
+      log(
+        `Got offer notification: ` +
+          JSON.stringify(new RTCSessionDescription(resp.desc))
+      );
+      await subPC.setRemoteDescription(new RTCSessionDescription(resp.desc));
+      console.log(subIceCandidates.length);
+      try {
+        if (subPC) {
+          subIceCandidates.forEach((c) => subPC.addIceCandidate(c));
+          subIceCandidates = [];
+        }
+      } catch (e) {
+        console.log(e);
+      }
+
+      const answer = subPC.createAnswer().then((a) => {
+        subPC.setLocalDescription(a);
+        log(`Sending answer` + JSON.stringify(a));
+        demoWebsocket.sendEvent({
+          action: 'subscribe',
+          event: 'answer',
+          sender: sender,
+          desc: a,
+          conversationId: conversationId,
+        });
+        // socket.send(
+        //     JSON.stringify({
+        //       action: 'subscribe',
+        //       event: 'answer',
+        //       sender: sender,
+        //       desc: a,
+        //       conversationId: conversationId,
+        //     })
+        // );
       });
-      // socket.send(
-      //   JSON.stringify({
-      //     action: 'subscribe',
-      //     event: 'offer',
-      //     sender: sender,
-      //     desc: offer,
-      //     conversationId: conversationId,
-      //   })
-      // );
+    } else if (resp.event === 'sfuTrickle') {
+      const iceCandidate = {
+        candidate: resp.candidate,
+        sdpMid: resp.sdpMid,
+        sdpMLineIndex: resp.sdpMLineIndex,
+        usernameFragment: resp.usernameFragment,
+      };
 
-      // socket.addEventListener('message', (event) => {
-      //   const resp = JSON.parse(event.data);
-      //   if (resp.id === id) {
-      //     log(`Got renegotiation answer`);
-      //     pc.setRemoteDescription(resp.result);
-      //   }
-      // });
-    };
-    // console.log(resp.result);
-    await pubPC.setRemoteDescription(resp.desc);
-    pubIceCandidates.forEach((c) => pubPC.addIceCandidate(c));
-  } else if (resp.event === 'sfuOffer') {
-    const offer = await subPC.createOffer();
-    console.log(offer);
-    log(
-      `Got offer notification: ` +
-        JSON.stringify(new RTCSessionDescription(resp.desc))
-    );
-    await subPC.setRemoteDescription(new RTCSessionDescription(resp.desc));
-    console.log(subIceCandidates.length);
-    try {
-      if (subPC) {
-        subIceCandidates.forEach((c) => subPC.addIceCandidate(c));
-        subIceCandidates = [];
-      }
-    } catch (e) {
-      console.log(e);
-    }
-
-    const answer =  subPC.createAnswer().then(a=>{
-      subPC.setLocalDescription(a)
-      log(`Sending answer`+ JSON.stringify(a));
-      demoWebsocket.sendEvent({
-        action: 'subscribe',
-        event: 'answer',
-        sender: sender,
-        desc: a,
-        conversationId: conversationId,
-      });
-      // socket.send(
-      //     JSON.stringify({
-      //       action: 'subscribe',
-      //       event: 'answer',
-      //       sender: sender,
-      //       desc: a,
-      //       conversationId: conversationId,
-      //     })
-      // );
-    });
-
-
-
-  } else if (resp.event === 'sfuTrickle') {
-
-    const iceCandidate = {
-      candidate: resp.candidate,
-      sdpMid: resp.sdpMid,
-      sdpMLineIndex: resp.sdpMLineIndex,
-      usernameFragment: resp.usernameFragment,
-    };
-
-    if (resp.target === 0) {
-      if (!pubPC || !pubPC.remoteDescription?.type) {
-        pubIceCandidates.push(iceCandidate);
+      if (resp.target === 0) {
+        if (!pubPC || !pubPC.remoteDescription?.type) {
+          pubIceCandidates.push(iceCandidate);
+        } else {
+          console.log('add candidate for publisher');
+          pubPC.addIceCandidate(iceCandidate).catch(log);
+        }
       } else {
-        console.log('add candidate for publisher');
-        pubPC.addIceCandidate(iceCandidate).catch(log);
+        if (!subPC || !subPC.remoteDescription?.type) {
+          subIceCandidates.push(iceCandidate);
+        } else {
+          console.log('add candidate for subscriber');
+          subPC.addIceCandidate(iceCandidate).catch(log);
+        }
       }
-    } else {
-      if (!subPC || !subPC.remoteDescription?.type) {
-        subIceCandidates.push(iceCandidate);
-      } else {
-        console.log('add candidate for subscriber');
-        subPC.addIceCandidate(iceCandidate).catch(log);
-      }
-    }
 
-    setTimeout(() => startEcho(), 500);
+      setTimeout(() => startEcho(), 500);
+    }
   }
 }
 
@@ -390,8 +384,6 @@ const handleJoin = async () => {
         `Message from DataChannel '${sendChannel.label}' payload '${e.data}'`
       );
   };
-
-
 };
 
 function App() {
@@ -466,35 +458,35 @@ function App() {
       setApi(syntaxHighlight(str));
     }
   }, [audioSettings]);
-let connect=()=>{
-  demoWebsocket=new DemoWebsocket(id,onmessage)
-}
- let start1=(sc)=>{
-  if(demoWebsocket) {
-    if (demoWebsocket.socket.readyState === 1) {
-      sender=id
-      if (sender==='USR-16b42006-b8c7-4235-abf5-153a55c9bf92') {
-        token = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w'
+  let connect = () => {
+    demoWebsocket = new DemoWebsocket(id, onmessage);
+  };
+  let start1 = (sc) => {
+    if (demoWebsocket) {
+      if (demoWebsocket.socket.readyState === 1) {
+        sender = id;
+        if (sender === 'USR-16b42006-b8c7-4235-abf5-153a55c9bf92') {
+          token =
+            'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w';
+        }
+        start(sc);
       }
-      start(sc)
-
+    } else {
+      swal('connect to websocket first');
     }
-  }else {
-    swal('connect to websocket first')
-  }
-  }
-  let start2=(sc)=>{
-    sender='USR-16b42006-b8c7-4235-abf5-153a55c9bf92';
-    token='eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w'
-      start(sc)
-
-  }
-  const start3=(sc)=>{
-    start(sc)
-  }
-  const start4=(sc)=>{
-    start(sc)
-  }
+  };
+  let start2 = (sc) => {
+    sender = 'USR-16b42006-b8c7-4235-abf5-153a55c9bf92';
+    token =
+      'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxMzAxNzEyMywiZXhwIjoxNjE0MjExMjAwfQ.SyEf-_xPVV2tSONtPiQMetbBqCSL-zE6u43pWDy2AWnwlZlL_YaYojcTw6rOSd84b0tepJhq60bRJQkGAIzh1w';
+    start(sc);
+  };
+  const start3 = (sc) => {
+    start(sc);
+  };
+  const start4 = (sc) => {
+    start(sc);
+  };
 
   const start = (sc) => {
     simulcast = sc;
@@ -635,9 +627,7 @@ let connect=()=>{
             id='start-btns'
             style={{ display: joining ? 'none' : 'block' }}
           >
-
             <div className='col-12'>
-
               <label>
                 User Id:
                 <input
