@@ -29,7 +29,7 @@ const turnConfig={
 let demoWebsocket
 let conversationId = '';
 let sender ='USR-89308c3a-30c4-4400-8313-eb9b0d31b056';
-let token='eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4OTMwOGMzYS0zMGM0LTQ0MDAtODMxMy1lYjliMGQzMWIwNTYiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiSm9obiBEb2UifSwiaWF0IjoxNjEzMDE2MzYyLCJleHAiOjE2MTQyMTEyMDB9.C9nhankmZf0VX9MC-YwFG0MzfcBJEVNDLFf8uaNWv60TBBOOPAkIzFAR_HQ0wAV5gWpTLKdWK4gvATvnkqAnWw'
+let token='eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIxNmI0MjAwNi1iOGM3LTQyMzUtYWJmNS0xNTNhNTVjOWJmOTIiLCJhdXRob3JpdGllcyI6W3siYXV0aG9yaXR5Ijoib3JnYW5pemF0aW9uOndyaXRlIn0seyJhdXRob3JpdHkiOiJST0xFX1VTRVIifSx7ImF1dGhvcml0eSI6Im9yZ2FuaXphdGlvbjpyZWFkIn1dLCJjbGllbnRJZCI6ImNvbmVjdGFyLnJ1IiwiaXNzIjoiY29uZWN0YXIucnUiLCJwcm9maWxlIjp7InJvbGUiOiJVU0VSIiwiZnVsbF9uYW1lIjoiRWx6YSBUdWNvdHRlIn0sImlhdCI6MTYxNjQxMTgxOCwiZXhwIjoxNjE3NTgwODAwfQ.bLtxyRGzOWtvGo38vMjUljFfPdWgOeoyB7Ki9ELqnipbeMS_yjtfQPdUluapxZsBggMPnDL2Z2vJcr5M4U7JnQ'
 const config = {
   codec: 'vp8' | 'vp9' | 'h264',
   iceServers: [
@@ -131,7 +131,7 @@ subPC.onicecandidate = (event) => {
 
 async function onmessage(event) {
   console.log(event);
-  const resp = JSON.parse(event.data);
+  const resp = JSON.parse(event.data.params);
 
   if (resp.event === 'sfuAnswer') {
     conversationId = resp.conversationId;
@@ -213,6 +213,7 @@ async function onmessage(event) {
 
 
   } else if (resp.event === 'sfuTrickle') {
+
     const iceCandidate = {
       candidate: resp.candidate,
       sdpMid: resp.sdpMid,
@@ -320,7 +321,7 @@ const handleJoin = async () => {
     token: token,
     desc: pubPC.localDescription,
     conversationId: conversationId,
-    appointmentId: conversationId,
+    appointmentId: '378964606',
   });
   demoWebsocket.sendEvent({
     action: 'subscribe',
@@ -329,7 +330,7 @@ const handleJoin = async () => {
     token: token,
     desc: pubPC.localDescription,
     conversationId: conversationId,
-    appointmentId: conversationId,
+    appointmentId: '378964606',
   });
   // socket.send(
   //   JSON.stringify({
