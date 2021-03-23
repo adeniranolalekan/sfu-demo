@@ -233,6 +233,8 @@ async function onmessage(event) {
       setTimeout(() => startEcho(), 500);
     }
   } else if (data.event === 'participants') {
+    conversationId=data.conversationId
+    console.log(conversationId)
     demoWebsocket.sendEvent({
       action: 'subscribe',
       event: 'join_sfu',
